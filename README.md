@@ -14,7 +14,7 @@ A three-minute ritual at your desk, in passthrough:
 4. Pinch-tap a Today card to start a focus timer. Pinch **Done** when it is finished.
 5. Next morning, everything you did not finish comes back to the row, marked "carried over", so it gets decided again instead of rotting in a list.
 
-Tasks are typed on the flat browser page (system keyboard, works with hands on Quest). Sorting and focus happen in the headset.
+Add a task by pinching **+ Say a task** and speaking, or type it on the flat browser page. Pinch the **move** handle to seat the workspace where you like it; it comes back there next time.
 
 ## Why it fits the brief
 
@@ -42,19 +42,25 @@ Requires Node 20.19+, 22.12+ or 24+.
 | `src/planner.ts` | Layout, grab and drop handling, focus timer |
 | `src/visuals.ts` | Canvas-drawn cards, trays, header, dial, buttons |
 | `src/sound.ts` | Synthesized audio cues |
+| `src/voice.ts` | Speech capture for adding a task in the headset |
 | `src/panel.ts` | Start panel on the flat page |
 
 ## Status (11 Nov 2026)
 
-Verified in headless Chrome: production build, flat-page mouse flow (sort into all three trays, refusal of a fourth Today card, tap to focus), and an emulated Quest 3 passthrough session starting and seating the workspace in front of the head.
+Verified in headless Chrome:
 
-**Not yet verified:** real hand tracking on a headset, and the Meta VR Glasses field of view.
+- production build and the flat-page mouse flow (sort into all three trays, refusal of a fourth Today card, tap to focus);
+- an emulated passthrough session that seats the workspace in front of the head;
+- **Meta VR Glasses profile** (gaze tracking granted): every element measured inside the 37° / 37° / 25° up / 43° down view. Tightest margins: move handle 41.7° down, Today tray 37.7° down, inbox row 31.7° to the side;
+- the voice button adds a card, tested with a stand-in recogniser;
+- a moved workspace seat is stored and restored on the next visit.
+
+**Not yet verified:** real hand tracking and real gaze on a device, and whether the Quest browser provides speech recognition. Where it does not, the button says so and the flat page's text field remains the way to add tasks.
 
 ## Before submission (deadline 18 Nov 2026, 12:00 PST)
 
 - [ ] Test on a Quest (or the XR Simulator) with hands only; tune pinch distances
-- [ ] Add tasks inside the headset by voice
-- [ ] Keep the workspace position between sessions (spatial anchor)
-- [ ] Host the build (GitHub Pages) and put the link in the Devpost form
+- [ ] Confirm voice entry on the device
+- [ ] Turn on GitHub Pages (Settings > Pages > Source: GitHub Actions) and put the link in the Devpost form
 - [ ] Record the demo video, under three minutes, best moment first
 - [ ] Confirm in the full rules that one person may submit more than one entry

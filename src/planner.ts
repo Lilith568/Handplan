@@ -29,6 +29,7 @@ import { Card, PlanButton } from './card-component.js';
 import { PlanStore, TODAY_LIMIT } from './plan-store.js';
 import type { Task, Zone } from './plan-store.js';
 import { play } from './sound.js';
+import { VoiceCapture } from './voice.js';
 import {
   cardSignature,
   createCardSurface,
@@ -42,6 +43,44 @@ import {
 import type { Surface } from './visuals.js';
 
 export const planStore = new PlanStore();
+
+interface Seat {
+  forward: number;
+  right: number;
+  drop: number;
+}
+
+const SEAT_KEY = 'handplan.seat.v1';
+// Default seat: close enough to reach, high enough that the trays stay inside
+// the narrow downward view of glasses-style displays.
+const DEFAULT_SEAT: Seat = { forward: 0.58, right: 0, drop: 0.24 };
+
+function loadSeat(): Seat {
+  try {
+    const raw = window.localStorage.getItem(SEAT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Seat>;
+      if (
+        typeof parsed.forward === 'number' &&
+        typeof parsed.right === 'number' &&
+        typeof parsed.drop === 'number'
+      ) {
+        return { forward: parsed.forward, right: parsed.right, drop: parsed.drop };
+      }
+    }
+  } catch {
+    // No storage: fall back to the default seat.
+  }
+  return { ...DEFAULT_SEAT };
+}
+
+function saveSeat(seat: Seat): void {
+  try {
+    window.localStorage.setItem(SEAT_KEY, JSON.stringify(seat));
+  } catch {
+    // Not fatal: the seat simply applies to this visit only.
+  }
+}
 
 type DropTarget = Zone | 'drop' | 'none';
 
@@ -92,16 +131,21 @@ export class PlannerSystem extends createSystem({
   private buttonMid!: Surface;
   private buttonBack!: Surface;
   private handle!: Surface;
+  private voiceButton!: Surface;
+  private voice = new VoiceCapture();
+  private voiceLabel = '';
   private handleEntity!: Entity;
   private focusParts: Object3D[] = [];
 
   private headerText = '';
   private laterCount = -1;
   private flashText = '';
+  private flashSub = '';
   private flashUntil = 0;
   private clock = 0;
   private snap = true;
   private needsPlacement = true;
+  private handleWasHeld = false;
   private placementWait = 0;
 
   private focusId: string | null = null;
@@ -122,7 +166,10 @@ export class PlannerSystem extends createSystem({
   private targetQuat = new Quaternion();
   private rootQuat = new Quaternion();
   private slot = new Object3D();
-  private handleRest = new Vector3(0, -0.118, 0.172);
+  private handleRest = new Vector3(0, -0.108, 0.168);
+  // Where the user last seated the workspace, relative to their head: metres
+  // forward, metres to the right, metres below eye level. Kept between visits.
+  private seat = loadSeat();
 
   init(): void {
     this.buildWorkspace();
@@ -174,8 +221,8 @@ export class PlannerSystem extends createSystem({
 
     const trays: Array<[Surface, number, number, number]> = [
       [this.trayToday, 0, 0, 0],
-      [this.trayLater, -0.25, 0.03, 0.25],
-      [this.trayDrop, 0.25, 0.03, -0.25],
+      [this.trayLater, -0.225, -0.06, 0.25],
+      [this.trayDrop, 0.225, -0.06, -0.25],
     ];
     for (const [tray, x, z, yaw] of trays) {
       tray.mesh.rotation.order = 'YXZ';
@@ -185,10 +232,18 @@ export class PlannerSystem extends createSystem({
       this.addPart(tray, rootEntity);
     }
 
-    this.header = createSurface(0.52, 0.08, 1040, 160);
-    this.header.mesh.position.set(0, 0.405, -0.22);
+    this.header = createSurface(0.42, 0.08, 840, 160);
+    this.header.mesh.position.set(-0.055, 0.405, -0.22);
     this.header.mesh.rotation.x = -0.15;
     this.addPart(this.header, rootEntity);
+
+    // Say a task out loud to add a card without leaving the headset.
+    this.voiceButton = createSurface(0.1, 0.042, 320, 134, { renderOrder: 3 });
+    this.voiceButton.mesh.position.set(0.215, 0.405, -0.22);
+    this.voiceButton.mesh.rotation.x = -0.15;
+    const voiceEntity = this.addPart(this.voiceButton, rootEntity);
+    voiceEntity.addComponent(RayInteractable);
+    voiceEntity.addComponent(PlanButton, { action: 'voice' });
 
     this.dial = createSurface(0.17, 0.17, 512, 512);
     this.dial.mesh.position.set(0.15, 0.27, -0.18);
@@ -235,6 +290,9 @@ export class PlannerSystem extends createSystem({
       part.visible = visible;
       part.scale.setScalar(visible ? 1 : 0.0001);
     }
+    // Adding tasks is for planning, not for the middle of a focus block.
+    this.voiceButton.mesh.visible = !visible;
+    this.voiceButton.mesh.scale.setScalar(visible ? 0.0001 : 1);
   }
 
   private createView(task: Task): CardView {
@@ -348,12 +406,42 @@ export class PlannerSystem extends createSystem({
     if (this.store.move(task.id, target)) {
       play('drop');
     } else {
-      this.flash('Today holds three. Swap one out first.');
+      this.flash('Today holds three.');
       play('refuse');
     }
   }
 
+  private onVoice(): void {
+    if (this.voice.state === 'unsupported') {
+      this.flash('Voice is not available here.', 'Add tasks on the browser page instead.');
+      play('refuse');
+      return;
+    }
+    play('pick');
+    this.voice.listen(
+      (text) => {
+        const task = this.store.add(text.charAt(0).toUpperCase() + text.slice(1));
+        if (task) {
+          play('drop');
+        }
+      },
+      (problem) => {
+        if (problem === 'not-allowed' || problem === 'service-not-allowed') {
+          this.flash('Microphone is blocked.', 'Allow it for this site, then try again.');
+        } else if (problem && problem !== 'aborted') {
+          this.flash('Nothing heard.', 'Pinch the button and say the task.');
+        }
+      },
+    );
+  }
+
   private onButton(action: string): void {
+    if (action === 'voice') {
+      if (!this.focusId) {
+        this.onVoice();
+      }
+      return;
+    }
     if (!this.focusId) {
       return;
     }
@@ -402,9 +490,10 @@ export class PlannerSystem extends createSystem({
     this.reconcile();
   }
 
-  private flash(text: string): void {
+  private flash(text: string, sub = 'Drag a Today card to Later to make room.'): void {
     this.flashText = text;
-    this.flashUntil = this.clock + 3;
+    this.flashSub = sub;
+    this.flashUntil = this.clock + 3.5;
   }
 
   // ------------------------------------------------------------------ layout
@@ -496,8 +585,29 @@ export class PlannerSystem extends createSystem({
     return scale;
   }
 
+  /** Store where the workspace now sits relative to the head (immersive only). */
+  private rememberSeat(): void {
+    if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) {
+      return;
+    }
+    this.camera.getWorldPosition(this.head);
+    this.camera.getWorldDirection(this.forward);
+    this.forward.y = 0;
+    if (this.forward.lengthSq() < 0.0001) {
+      return;
+    }
+    this.forward.normalize();
+    this.tmp.copy(this.root.position).sub(this.head);
+    const forward = this.tmp.x * this.forward.x + this.tmp.z * this.forward.z;
+    const right = this.tmp.x * -this.forward.z + this.tmp.z * this.forward.x;
+    this.seat.forward = Math.max(0.35, Math.min(0.9, forward));
+    this.seat.right = Math.max(-0.4, Math.min(0.4, right));
+    this.seat.drop = Math.max(0.1, Math.min(0.6, -this.tmp.y));
+    saveSeat(this.seat);
+  }
+
   /** Seat the workspace in front of the viewer. */
-  private place(distance: number, drop: number): void {
+  private place(distance: number, drop: number, right = 0): void {
     this.camera.getWorldPosition(this.head);
     this.camera.getWorldDirection(this.forward);
     this.forward.y = 0;
@@ -508,6 +618,9 @@ export class PlannerSystem extends createSystem({
     this.root.position
       .copy(this.head)
       .addScaledVector(this.forward, distance);
+    // right-hand direction of a flat forward vector (x, 0, z) is (-z, 0, x)
+    this.root.position.x += -this.forward.z * right;
+    this.root.position.z += this.forward.x * right;
     this.root.position.y = this.head.y - drop;
     this.root.rotation.set(0, Math.atan2(-this.forward.x, -this.forward.z), 0);
     this.root.updateMatrixWorld(true);
@@ -530,7 +643,10 @@ export class PlannerSystem extends createSystem({
     let sub: string;
     if (this.clock < this.flashUntil) {
       title = this.flashText;
-      sub = 'Drag a Today card to Later to make room.';
+      sub = this.flashSub;
+    } else if (this.voice.state === 'listening') {
+      title = 'Listening';
+      sub = 'Say the task, for example: call the plumber.';
     } else if (this.focusId) {
       title = 'One thing.';
       sub = 'Pinch Done when it is finished.';
@@ -545,7 +661,13 @@ export class PlannerSystem extends createSystem({
       sub = 'Pinch a Today card to start a focus timer.';
     } else {
       title = `All clear  ·  ${done} done today`;
-      sub = 'Add tasks from the browser page, then come back.';
+      sub = 'Pinch the button on the right and say a task.';
+    }
+    const label =
+      this.voice.state === 'listening' ? 'Listening' : '+ Say a task';
+    if (label !== this.voiceLabel) {
+      this.voiceLabel = label;
+      drawButton(this.voiceButton, label, this.voice.state === 'listening' ? 'primary' : 'plain');
     }
     const later = tasks.length - inbox - today;
     if (later !== this.laterCount) {
@@ -573,7 +695,7 @@ export class PlannerSystem extends createSystem({
         if (flat) {
           this.place(0.66, 0.3);
         } else {
-          this.place(0.52, 0.34);
+          this.place(this.seat.forward, this.seat.drop, this.seat.right);
         }
         this.needsPlacement = false;
       }
@@ -596,7 +718,12 @@ export class PlannerSystem extends createSystem({
           0,
         );
         this.root.updateMatrixWorld(true);
+        this.handleWasHeld = true;
       } else {
+        if (this.handleWasHeld) {
+          this.handleWasHeld = false;
+          this.rememberSeat();
+        }
         this.root.updateMatrixWorld(true);
         this.root.getWorldQuaternion(this.rootQuat);
         this.root.localToWorld(this.tmp.copy(this.handleRest));

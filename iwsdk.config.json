@@ -13,7 +13,8 @@
       "mode": "ar",
       "offer": "always",
       "features": {
-        "handTracking": true
+        "handTracking": true,
+        "gazeTracking": true
       }
     },
     "input": {
@@ -50,7 +51,7 @@
   },
   "dev": {
     "emulator": {
-      "device": "metaQuest3",
+      "device": "metaVRGlasses",
       "environment": "sunlit_living_room"
     }
   }

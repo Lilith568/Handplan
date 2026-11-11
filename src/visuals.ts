@@ -216,11 +216,20 @@ export function drawHeader(surface: Surface, title: string, sub: string): void {
   ctx.fillStyle = 'rgba(18,20,24,0.72)';
   ctx.fill();
   ctx.textBaseline = 'top';
+  // Shrink a line rather than let it run off the panel.
+  const fit = (text: string, weight: number, size: number): void => {
+    let px = size;
+    ctx.font = `${weight} ${px}px ${FONT}`;
+    while (px > 18 && ctx.measureText(text).width > w - 80) {
+      px -= 2;
+      ctx.font = `${weight} ${px}px ${FONT}`;
+    }
+  };
   ctx.fillStyle = '#fafaf7';
-  ctx.font = `700 46px ${FONT}`;
+  fit(title, 700, 46);
   ctx.fillText(title, 40, 24);
   ctx.fillStyle = '#c9c5bb';
-  ctx.font = `500 32px ${FONT}`;
+  fit(sub, 500, 32);
   ctx.fillText(sub, 40, 86);
   surface.texture.needsUpdate = true;
 }
