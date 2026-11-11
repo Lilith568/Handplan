@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <link rel="icon" href="data:," />
+    <title>Handplan</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #14161a;
+        font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      }
+      #add-bar {
+        position: fixed;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 999px;
+        background: rgba(18, 20, 24, 0.82);
+        border: 1px solid rgba(242, 239, 232, 0.25);
+        z-index: 5;
+      }
+      #add-input {
+        width: min(46vw, 320px);
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 0;
+        font: inherit;
+        font-size: 15px;
+        background: #f6f1e6;
+        color: #1d1b18;
+      }
+      #add-bar button {
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 0;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      #add-button {
+        background: #e0a100;
+        color: #1d1b18;
+      }
+      #reset-button {
+        background: transparent;
+        color: #c9c5bb;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="scene-container"></div>
+    <form id="add-bar" autocomplete="off">
+      <input
+        id="add-input"
+        maxlength="60"
+        placeholder="Add a task for tomorrow morning"
+        aria-label="New task"
+      />
+      <button id="add-button" type="submit">Add card</button>
+      <button id="reset-button" type="button">Reset demo</button>
+    </form>
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>

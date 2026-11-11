@@ -1,0 +1,63 @@
+<style>
+  .panel-root {
+    flex-direction: column;
+    width: 420px;
+  }
+
+  .panel-content {
+    flex-direction: column;
+    gap: 7px;
+    padding: 22px;
+  }
+
+  .eyebrow {
+    color: #f5d90a;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+  }
+
+  .heading {
+    color: #fafaf7;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 36px;
+  }
+
+  .body {
+    color: #dddfe3;
+    font-size: 20px;
+    line-height: 27px;
+  }
+
+  .button {
+    justify-content: flex-start;
+    margin-left: 22px;
+    margin-right: 22px;
+    margin-bottom: 22px;
+  }
+
+  .button-label {
+    transform-translate-y: 1px;
+  }
+</style>
+<Panel class="panel-root">
+  <div class="panel-content">
+    <div class="eyebrow">HANDPLAN</div>
+    <div class="heading">Three things. By hand.</div>
+    <div class="body">Pinch a card, drop it in a tray.</div>
+    <div class="body">Today holds three. That is the point.</div>
+  </div>
+  <Button id="xr-button" class="button">
+    <ButtonIcon>
+      <RectangleGoggles></RectangleGoggles>
+    </ButtonIcon>
+    <ButtonLabel class="button-label">Start at my desk</ButtonLabel>
+  </Button>
+  <Button id="exit-button" class="button" style="display: none">
+    <ButtonIcon>
+      <LogIn></LogIn>
+    </ButtonIcon>
+    <ButtonLabel class="button-label">Back to browser</ButtonLabel>
+  </Button>
+</Panel>

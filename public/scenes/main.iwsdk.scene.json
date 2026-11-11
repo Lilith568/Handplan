@@ -1,0 +1,46 @@
+{
+  "version": "iwsdk.scene.v1",
+  "units": "meters",
+  "components": {
+    "com.iwsdk.components.IBLGradient": {
+      "sky": [0.96, 0.94, 0.9, 1],
+      "equator": [0.8, 0.76, 0.7, 1],
+      "ground": [0.46, 0.42, 0.38, 1],
+      "intensity": 0.6
+    }
+  },
+  "environment": {
+    "toneMapping": "aces",
+    "exposure": 1,
+    "shadows": false,
+    "shadowMapType": "pcf"
+  },
+  "resources": {},
+  "nodes": [
+    {
+      "id": "welcome-panel",
+      "name": "Welcome Panel",
+      "content": { "type": "asset", "asset": "welcome-panel" },
+      "transform": {
+        "position": [-0.52, 1.5, 0.28],
+        "rotationDeg": [-6, 28, 0],
+        "scale": 0.09
+      },
+      "components": { "RayInteractable": {} }
+    },
+    {
+      "id": "key-light",
+      "name": "Key Light",
+      "transform": {
+        "position": [-1.2, 3, 1.5],
+        "rotationDeg": [-60, -20, 0]
+      },
+      "components": { "DirectionalLight": {} }
+    },
+    {
+      "id": "fill-light",
+      "name": "Fill Light",
+      "components": { "HemisphereLight": {} }
+    }
+  ]
+}
